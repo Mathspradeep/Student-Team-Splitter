@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Team Splitter & Leader Manager</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SheetJS for Excel/CSV Parsing & Exporting -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- html2pdf.js for Client-Side PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f3ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans text-slate-800 bg-slate-50 antialiased selection:bg-brand-500 selection:text-white">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- App Logo & Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                        <i data-lucide="crown" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-extrabold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">TeamCraft Studio</h1>
+                        <p class="text-xs text-slate-500 font-medium">Dynamic Team Splitter & Leader Manager</p>
+                    </div>
+                </div>
+
+                <!-- Global Action Header Buttons -->
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <button id="btnPDFExport" onclick="generatePDFReport()" class="inline-flex items-center justify-center px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-lg shadow-sm transition-all focus:ring-2 focus:ring-rose-500 focus:ring-offset-1">
+                        <i data-lucide="file-down" class="w-4 h-4 mr-1.5"></i> Download PDF
+                    </button>
+                    <button id="btnExcelExport" onclick="exportToExcel()" class="inline-flex items-center justify-center px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-sm transition-all focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1">
+                        <i data-lucide="sheet" class="w-4 h-4 mr-1.5"></i> Export Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4 no-print">
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Roster</p>
+                    <h3 id="statTotalStudents" class="text-2xl font-extrabold text-slate-800 mt-0.5">63</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Assigned</p>
+                    <h3 id="statAssigned" class="text-2xl font-extrabold text-emerald-600 mt-0.5">0</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <i data-lucide="user-check" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Unassigned</p>
+                    <h3 id="statUnassigned" class="text-2xl font-extrabold text-amber-600 mt-0.5">63</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <i data-lucide="user-minus" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Teams</p>
+                    <h3 id="statTotalTeams" class="text-2xl font-extrabold text-brand-600 mt-0.5">9</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
+                    <i data-lucide="grid" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Team Strength</p>
+                    <h3 id="statTeamSize" class="text-2xl font-extrabold text-purple-600 mt-0.5">7</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                    <i data-lucide="users" class="w-5 h-5"></i>
+                </div>
+            </div>
+
+            <div class="col-span-2 md:col-span-1 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Capacity</p>
+                    <h3 id="statTotalCapacity" class="text-2xl font-extrabold text-indigo-600 mt-0.5">63</h3>
+                </div>
+                <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 no-print">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3">
+                <div>
+                    <h2 class="text-base font-bold text-slate-800 flex items-center">
+                        <i data-lucide="sliders-horizontal" class="w-5 h-5 mr-2 text-brand-600"></i> Dynamic Configuration Panel
+                    </h2>
+                    <p class="text-xs text-slate-500">Adjust total teams and maximum capacity per team in real time.</p>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <button onclick="autoSuggestConfiguration()" class="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 text-xs font-bold rounded-lg transition-colors flex items-center">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 mr-1.5"></i> Auto-Balance Settings
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-center">
+                
+                <!-- Dynamic Teams Count Control -->
+                <div class="lg:col-span-6 bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600">Number of Teams</label>
+                        <p class="text-[11px] text-slate-400">Range: 1 to 50 teams</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="adjustTeamCount(-1)" class="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-extrabold text-slate-700 flex items-center justify-center shadow-sm">
+                            <i data-lucide="minus" class="w-4 h-4"></i>
+                        </button>
+                        <input type="number" id="numTeamsInput" min="1" max="50" value="9" onchange="setTeamCount(this.value)" class="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1 text-center text-sm font-bold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        <button onclick="adjustTeamCount(1)" class="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-extrabold text-slate-700 flex items-center justify-center shadow-sm">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dynamic Team Strength (Max Capacity) Control -->
+                <div class="lg:col-span-6 bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600">Team Strength (Capacity)</label>
+                        <p class="text-[11px] text-slate-400">Max members per team</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="adjustTeamCapacity(-1)" class="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-extrabold text-slate-700 flex items-center justify-center shadow-sm">
+                            <i data-lucide="minus" class="w-4 h-4"></i>
+                        </button>
+                        <input type="number" id="teamCapacityInput" min="1" max="50" value="7" onchange="setTeamCapacity(this.value)" class="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1 text-center text-sm font-bold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        <button onclick="adjustTeamCapacity(1)" class="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-extrabold text-slate-700 flex items-center justify-center shadow-sm">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="border-b border-slate-200 no-print">
+            <nav class="-mb-px flex space-x-6 overflow-x-auto custom-scrollbar" aria-label="Tabs">
+                <button onclick="switchTab('choice')" id="tab-choice" class="tab-btn border-brand-600 text-brand-600 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center">
+                    <i data-lucide="user-plus" class="w-4 h-4 mr-2"></i> Student Search & Assignment
+                </button>
+                <button onclick="switchTab('auto')" id="tab-auto" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center">
+                    <i data-lucide="sparkles" class="w-4 h-4 mr-2"></i> Auto-Split Generator
+                </button>
+                <button onclick="switchTab('roster')" id="tab-roster" class="tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center">
+                    <i data-lucide="list-checks" class="w-4 h-4 mr-2"></i> Roster & Excel Upload
+                </button>
+            </nav>
+        </div>
+
+        <div id="content-choice" class="tab-content space-y-6">
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    <!-- Left Descriptor -->
+                    <div class="lg:col-span-4 space-y-2">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/30">
+                            <i data-lucide="crown" class="w-3.5 h-3.5 mr-1"></i> Interactive Selection
+                        </span>
+                        <h2 class="text-xl sm:text-2xl font-bold tracking-tight">Assign Student & Designate Leader</h2>
+                        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                            Type to search any student name, select an open team, and optionally mark them as <strong>Team Leader (👑)</strong>. Teams that reach capacity (<span class="text-brand-300 font-bold max-size-display">7</span> members) automatically show as <strong>(FULL)</strong> and are disabled.
+                        </p>
+                    </div>
+
+                    <!-- Right Controls Form -->
+                    <div class="lg:col-span-8 bg-white/10 backdrop-blur-md p-4 sm:p-5 rounded-xl border border-white/15 space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            
+                            <!-- Searchable Student Selector Component -->
+                            <div class="relative">
+                                <label class="block text-xs font-semibold text-slate-200 mb-1">
+                                    Search Student Name <span class="text-amber-400">*</span>
+                                </label>
+                                <div class="relative">
+                                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="studentSearchInput" oninput="handleStudentSearchInput(this.value)" onfocus="showSearchDropdown()" placeholder="Type student name to search..." class="w-full bg-slate-800 text-white border border-slate-600 rounded-lg pl-9 pr-8 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                                    <button type="button" onclick="clearSelectedStudentSearch()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Dynamic Autocomplete Dropdown List -->
+                                <div id="studentSearchResults" class="hidden absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl max-h-56 overflow-y-auto custom-scrollbar z-50 divide-y divide-slate-700/50">
+                                    <!-- Options injected dynamically -->
+                                </div>
+                            </div>
+
+                            <!-- Team Choice Dropdown (Auto-disables when full) -->
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-200 mb-1">
+                                    Select Team Number <span class="text-amber-400">*</span>
+                                </label>
+                                <select id="teamChoiceSelect" class="w-full bg-slate-800 text-white border border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                                    <!-- Populated dynamically via JS -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Team Leader Designation Checkbox -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-white/10">
+                            <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+                                <input type="checkbox" id="markLeaderCheckbox" class="w-4 h-4 rounded text-amber-500 bg-slate-800 border-slate-600 focus:ring-amber-400 focus:ring-offset-slate-900">
+                                <span class="text-xs sm:text-sm font-semibold text-amber-300 flex items-center">
+                                    👑 Mark as Team Leader for this Team
+                                </span>
+                            </label>
+
+                            <div class="flex items-center space-x-2">
+                                <button type="button" onclick="unassignSelectedStudent()" class="px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                                    Unassign
+                                </button>
+                                <button type="button" onclick="assignStudentFromChoice()" class="px-5 py-2 text-xs sm:text-sm font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-lg shadow-lg shadow-brand-500/30 transition-all flex items-center">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 mr-1.5"></i> Confirm Assignment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-auto" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center">
+                        <i data-lucide="zap" class="w-5 h-5 mr-2 text-brand-600"></i> Auto-Split Configurations
+                    </h3>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-1">Automatically partition unassigned students into equal-sized teams according to your capacity limits.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Split Strategy -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Distribution Strategy</label>
+                        <select id="splitStrategySelect" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <option value="random">Randomized Shuffle</option>
+                            <option value="sequential">Sequential (Alphabetical order)</option>
+                        </select>
+                        <p class="text-[11px] text-slate-400 mt-1">Choose how student names are ordered during auto-fill.</p>
+                    </div>
+
+                    <!-- Auto-Assign Leader Checkbox -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Leader Assignment</label>
+                        <div class="flex items-center h-10">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" id="autoAssignLeaderToggle" checked class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
+                                <span class="text-xs font-bold text-slate-700">Designate 1st member as Team Leader 👑</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                    <button onclick="unassignAllStudents()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold text-xs transition-colors flex items-center">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4 mr-1.5"></i> Clear All Team Assignments
+                    </button>
+                    <button onclick="executeAutoSplit()" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-bold text-sm shadow-sm transition-all flex items-center">
+                        <i data-lucide="zap" class="w-4 h-4 mr-1.5"></i> Execute Auto-Split
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-roster" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center">
+                            <i data-lucide="database" class="w-5 h-5 mr-2 text-brand-600"></i> Roster Operations & File Upload
+                        </h3>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-1">Upload Excel/CSV roster files, add students, or reset to default list of 63 students.</p>
+                    </div>
+
+                    <!-- Reset & Clear Buttons -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="resetToDefaultData()" class="px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors flex items-center border border-indigo-200">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1.5"></i> Reset Default Data (63)
+                        </button>
+                        <button onclick="promptClearAllStudents()" class="px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors flex items-center border border-rose-200">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5 mr-1.5"></i> Clear All Student Names
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Excel / CSV Upload Area -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                    <div class="md:col-span-6 bg-slate-50 border-2 border-dashed border-slate-300 hover:border-brand-500 rounded-xl p-6 text-center transition-all flex flex-col items-center justify-center cursor-pointer relative" onclick="document.getElementById('excelFileInput').click()">
+                        <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelFileUpload(event)">
+                        <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2">
+                            <i data-lucide="file-spreadsheet" class="w-6 h-6"></i>
+                        </div>
+                        <h4 class="text-sm font-bold text-slate-800">Upload Excel or CSV File</h4>
+                        <p class="text-xs text-slate-500 mt-1">Supports .xlsx, .xls, and .csv formats</p>
+                        <span class="mt-3 px-3 py-1 bg-white border border-slate-200 shadow-sm text-xs font-semibold text-slate-700 rounded-md">Browse Roster File</span>
+                    </div>
+
+                    <!-- Single Student Addition -->
+                    <div class="md:col-span-6 bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
+                        <h4 class="text-sm font-bold text-slate-800 flex items-center">
+                            <i data-lucide="user-plus" class="w-4 h-4 mr-1.5 text-slate-600"></i> Add Single Student
+                        </h4>
+                        <div class="flex space-x-2">
+                            <input type="text" id="newStudentNameInput" placeholder="Enter full student name..." class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <button onclick="addNewStudent()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors">
+                                Add Student
+                            </button>
+                        </div>
+
+                        <!-- Bulk Text Paste -->
+                        <div class="pt-2">
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Bulk Paste Names (One per line)</label>
+                            <textarea id="bulkPasteInput" rows="3" placeholder="Paste names list here..." class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+                            <button onclick="processBulkPaste()" class="mt-2 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-md transition-colors w-full">
+                                Process Bulk Import
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 no-print">
+            <div class="relative flex-1 max-w-md">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="gridSearchInput" oninput="filterTeamDisplay()" placeholder="Filter grid by team or student name..." class="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none shadow-sm">
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <span class="text-xs text-slate-500 font-medium">Quick Filter:</span>
+                <button onclick="setTeamFilter('all')" id="filter-btn-all" class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600 text-white shadow-sm">All Teams</button>
+                <button onclick="setTeamFilter('open')" id="filter-btn-open" class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Has Openings</button>
+                <button onclick="setTeamFilter('full')" id="filter-btn-full" class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">Full Teams</button>
+            </div>
+        </div>
+
+        <div id="teamsDisplayGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Team cards rendered dynamically by JS -->
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden no-print">
+            <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="users" class="w-5 h-5 text-slate-600"></i>
+                    <h3 class="font-bold text-slate-800 text-base">Complete Master Roster (<span id="masterListCount">63</span>)</h3>
+                </div>
+                <button onclick="toggleMasterList()" class="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center">
+                    <span id="masterListToggleText">Collapse View</span>
+                    <i data-lucide="chevron-down" id="masterListToggleIcon" class="w-4 h-4 ml-1 transition-transform"></i>
+                </button>
+            </div>
+
+            <div id="masterListContainer" class="p-4 sm:p-5 custom-scrollbar max-h-96 overflow-y-auto">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5" id="masterStudentListGrid">
+                    <!-- Student pill items rendered dynamically -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="confirmationModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center space-x-3 text-rose-600">
+                <div class="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                </div>
+                <h3 id="modalTitle" class="text-lg font-bold text-slate-900">Are you sure?</h3>
+            </div>
+            <p id="modalMessage" class="text-xs sm:text-sm text-slate-600 leading-relaxed">This action cannot be undone.</p>
+            <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button onclick="closeConfirmationModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button id="modalConfirmBtn" onclick="executeModalConfirmAction()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors">
+                    Confirm Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="hidden">
+        <div id="pdfReportContainer" class="p-8 bg-white text-slate-900 font-sans space-y-6">
+            <div class="border-b-2 border-slate-800 pb-4 flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-slate-900 uppercase">OFFICIAL TEAM ROSTER REPORT</h1>
+                    <p class="text-xs text-slate-500 mt-1">Generated via TeamCraft Studio &bull; Dynamic Sizing System</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs font-bold text-slate-700" id="pdfReportDate">Date: --</p>
+                    <p class="text-xs text-slate-500">Total Roster: <span id="pdfTotalStudents">63</span> | Capacity/Team: <span id="pdfTeamCapacity">7</span></p>
+                </div>
+            </div>
+
+            <div id="pdfTeamsContent" class="space-y-6">
+                <!-- Injected dynamically during PDF generation -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-auto py-4 no-print">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+            Online Team Splitter &bull; Dynamic Team Capacity Controls & Leader Badges.
+        </div>
+    </footer>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <script>
+        // DEFAULT DATASET OF ALL 63 STUDENTS
+        const DEFAULT_STUDENT_LIST = [
+            "AAKASH KUMAR P", "AARTHY M J", "ABINAYA SREE M", "ABISHEK M", "AISHWARYA B",
+            "AKSHA JAICEE S", "ANDREA PRINCE", "ANGELIN SWEETY P", "ANUSIYA M", "ARUNA S",
+            "ASHWIN R", "BAKYA SUJITHA D", "BAVANASRI S", "BHAGYALAKSHMI S", "BHAVANA SRI T R",
+            "BOOPASH G", "BOOVIKA R", "BOOVISH R", "CHRISTY S", "CIBI P",
+            "DARSINI V", "DHARMA R", "DHARSHANA K", "DHARSHIKA S", "DHARSHINI C",
+            "DHARSHINI R S", "DHARSHINI T", "DHARSHNI S D", "DHILIP KUMAR M", "DHIVYA K",
+            "DHIVYESH S", "FEMINA M S", "GAYATHRI P", "HARINI S", "HARSHA VARDHAN S",
+            "HRITHIK A", "INDHU K", "INDHUMATHI M", "JUMAANA J", "KALAIVANI V",
+            "KALPANA R", "KANCHANA T S", "KANISHKA S", "KANISHKAR G", "KARTHIKEYAN P",
+            "KAVIN KUMAR V", "KEERTHANA K", "KEERTHIGA V", "KEYASTIN K", "KOKILA M",
+            "LALITH ADITHYA M", "LATHIKA P", "LAVANYA S", "LOGITHA NAGARATHINAM B R", "LOKESHWARAN B",
+            "M SRI HARI", "MADHUMITHA M", "MENAKA V", "MITRA S", "MOBISHA T",
+            "MOHAMED MUBARISH M", "MOHAN PRASA D", "MOHANAVEL N"
+        ];
+
+        // Global State Management
+        let state = {
+            students: [],            // Array of objects: { id: number, name: string, teamId: number|null, isLeader: boolean }
+            numTeams: 9,            // Dynamic number of teams
+            maxTeamCapacity: 7,     // Dynamic capacity limit per team
+            currentFilter: 'all',   // Filter: 'all', 'open', 'full'
+            selectedStudentId: null, // Currently selected student in search autocomplete
+            masterListOpen: true,
+            pendingAction: null     // Pending action callback for confirmation modal
+        };
+
+        window.onload = function() {
+            lucide.createIcons();
+            loadStateFromStorage();
+            renderApp();
+
+            // Close search autocomplete dropdown on click outside
+            document.addEventListener('click', function(e) {
+                const searchContainer = document.getElementById('studentSearchInput')?.parentElement;
+                if (searchContainer && !searchContainer.contains(e.target)) {
+                    hideSearchDropdown();
+                }
+            });
+        };
+
+        function loadStateFromStorage() {
+            const saved = localStorage.getItem('teamSplitter_v3_state');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state.students = parsed.students || [];
+                    state.numTeams = parsed.numTeams || 9;
+                    state.maxTeamCapacity = parsed.maxTeamCapacity || 7;
+                } catch(e) {
+                    initDefaultState();
+                }
+            } else {
+                initDefaultState();
+            }
+
+            if (state.students.length === 0) {
+                initDefaultState();
+            }
+        }
+
+        function initDefaultState() {
+            state.students = DEFAULT_STUDENT_LIST.map((name, idx) => ({
+                id: idx + 1,
+                name: name.trim(),
+                teamId: null,
+                isLeader: false
+            }));
+            state.numTeams = 9;
+            state.maxTeamCapacity = 7;
+            state.selectedStudentId = null;
+            saveState();
+        }
+
+        function saveState() {
+            localStorage.setItem('teamSplitter_v3_state', JSON.stringify({
+                students: state.students,
+                numTeams: state.numTeams,
+                maxTeamCapacity: state.maxTeamCapacity
+            }));
+        }
+
+        function adjustTeamCount(delta) {
+            const newCount = state.numTeams + delta;
+            setTeamCount(newCount);
+        }
+
+        function setTeamCount(val) {
+            const parsed = parseInt(val);
+            if (isNaN(parsed) || parsed < 1) return;
+            if (parsed > 50) {
+                showToast("Maximum teams limit is 50.", "warning");
+                return;
+            }
+
+            // If reducing team count, clear assignments from teams beyond the new count
+            if (parsed < state.numTeams) {
+                let displacedCount = 0;
+                state.students.forEach(s => {
+                    if (s.teamId > parsed) {
+                        s.teamId = null;
+                        s.isLeader = false;
+                        displacedCount++;
+                    }
+                });
+                if (displacedCount > 0) {
+                    showToast(`Reduced teams to ${parsed}. ${displacedCount} student(s) moved to unassigned.`, "info");
+                }
+            }
+
+            state.numTeams = parsed;
+            document.getElementById('numTeamsInput').value = state.numTeams;
+            saveState();
+            renderApp();
+        }
+
+        function adjustTeamCapacity(delta) {
+            const newCap = state.maxTeamCapacity + delta;
+            setTeamCapacity(newCap);
+        }
+
+        function setTeamCapacity(val) {
+            const parsed = parseInt(val);
+            if (isNaN(parsed) || parsed < 1) return;
+            if (parsed > 50) {
+                showToast("Maximum capacity limit is 50.", "warning");
+                return;
+            }
+
+            // Check if any team currently exceeds the new capacity
+            let displacedCount = 0;
+            for (let t = 1; t <= state.numTeams; t++) {
+                const members = state.students.filter(s => s.teamId === t);
+                if (members.length > parsed) {
+                    // Remove excess members
+                    const excess = members.slice(parsed);
+                    excess.forEach(s => {
+                        s.teamId = null;
+                        s.isLeader = false;
+                        displacedCount++;
+                    });
+                }
+            }
+
+            if (displacedCount > 0) {
+                showToast(`Reduced team strength to ${parsed}. ${displacedCount} student(s) moved to unassigned.`, "info");
+            }
+
+            state.maxTeamCapacity = parsed;
+            document.getElementById('teamCapacityInput').value = state.maxTeamCapacity;
+            saveState();
+            renderApp();
+        }
+
+        function autoSuggestConfiguration() {
+            if (state.students.length === 0) {
+                showToast("No students in roster to calculate settings.", "error");
+                return;
+            }
+
+            // Calculate ideal balance (e.g. 63 / 7 = 9 teams of 7)
+            const count = state.students.length;
+            let bestStrength = 7;
+            if (count <= 10) bestStrength = 2;
+            else if (count <= 20) bestStrength = 4;
+            else if (count <= 35) bestStrength = 5;
+            else if (count <= 50) bestStrength = 6;
+            else bestStrength = 7;
+
+            const calcTeams = Math.ceil(count / bestStrength);
+            state.maxTeamCapacity = bestStrength;
+            state.numTeams = calcTeams;
+
+            saveState();
+            renderApp();
+            showToast(`Auto-balanced: ${calcTeams} Teams with Strength ${bestStrength}`, "success");
+        }
+
+        function renderApp() {
+            // Update Dashboard Analytics Metrics
+            document.getElementById('statTotalStudents').textContent = state.students.length;
+            const assignedCount = state.students.filter(s => s.teamId !== null).length;
+            document.getElementById('statAssigned').textContent = assignedCount;
+            document.getElementById('statUnassigned').textContent = state.students.length - assignedCount;
+            document.getElementById('statTotalTeams').textContent = state.numTeams;
+            document.getElementById('statTeamSize').textContent = state.maxTeamCapacity;
+            document.getElementById('statTotalCapacity').textContent = state.numTeams * state.maxTeamCapacity;
+
+            // Sync Inputs
+            document.getElementById('numTeamsInput').value = state.numTeams;
+            document.getElementById('teamCapacityInput').value = state.maxTeamCapacity;
+            document.getElementById('masterListCount').textContent = state.students.length;
+
+            document.querySelectorAll('.max-size-display').forEach(el => el.textContent = state.maxTeamCapacity);
+
+            // Populate Team Choice Select Dropdown (With Automatic Disable when FULL)
+            renderTeamChoiceSelectOptions();
+
+            // Render Teams Grid
+            renderTeamsGrid();
+
+            // Render Master Roster Grid
+            renderMasterRosterList();
+
+            // Re-initialize Lucide SVG icons
+            lucide.createIcons();
+        }
+
+        function handleStudentSearchInput(query) {
+            const dropdown = document.getElementById('studentSearchResults');
+            const cleanQuery = query.toLowerCase().trim();
+
+            const matches = state.students.filter(s => 
+                s.name.toLowerCase().includes(cleanQuery) || s.id.toString() === cleanQuery
+            );
+
+            if (matches.length === 0) {
+                dropdown.innerHTML = `<div class="p-3 text-xs text-slate-400 italic text-center">No students found matching "${query}"</div>`;
+            } else {
+                dropdown.innerHTML = matches.map(s => `
+                    <div onclick="selectStudentForAssignment(${s.id})" class="p-2.5 hover:bg-slate-700 cursor-pointer flex items-center justify-between text-xs transition-colors">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-slate-400 w-6">${s.id}.</span>
+                            <span class="font-semibold text-white">${s.name}</span>
+                        </div>
+                        ${s.teamId ? 
+                            `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/30 text-indigo-300 border border-indigo-500/40">Team ${s.teamId} ${s.isLeader ? '👑' : ''}</span>` : 
+                            `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300">Unassigned</span>`
+                        }
+                    </div>
+                `).join('');
+            }
+            showSearchDropdown();
+        }
+
+        function showSearchDropdown() {
+            const dropdown = document.getElementById('studentSearchResults');
+            dropdown.classList.remove('hidden');
+        }
+
+        function hideSearchDropdown() {
+            const dropdown = document.getElementById('studentSearchResults');
+            dropdown.classList.add('hidden');
+        }
+
+        function selectStudentForAssignment(studentId) {
+            const student = state.students.find(s => s.id === studentId);
+            if (!student) return;
+
+            state.selectedStudentId = student.id;
+            const input = document.getElementById('studentSearchInput');
+            input.value = `${student.id}. ${student.name}`;
+            
+            // Sync leader checkbox if student is already a leader
+            document.getElementById('markLeaderCheckbox').checked = student.isLeader;
+
+            // Pre-select team if already assigned
+            if (student.teamId && student.teamId <= state.numTeams) {
+                document.getElementById('teamChoiceSelect').value = student.teamId;
+            }
+
+            hideSearchDropdown();
+        }
+
+        function clearSelectedStudentSearch() {
+            state.selectedStudentId = null;
+            document.getElementById('studentSearchInput').value = '';
+            document.getElementById('markLeaderCheckbox').checked = false;
+            hideSearchDropdown();
+        }
+
+        function renderTeamChoiceSelectOptions() {
+            const teamSelect = document.getElementById('teamChoiceSelect');
+            const currentSelected = teamSelect.value;
+
+            teamSelect.innerHTML = '<option value="">-- Select Team Number --</option>';
+
+            for (let i = 1; i <= state.numTeams; i++) {
+                const members = state.students.filter(s => s.teamId === i);
+                const count = members.length;
+                const isFull = count >= state.maxTeamCapacity;
+
+                const opt = document.createElement('option');
+                opt.value = i;
+
+                if (isFull) {
+                    opt.disabled = true; // AUTOMATICALLY DISABLE TEAM OPTION WHEN FULL
+                    opt.textContent = `🚫 Team ${i} (FULL - ${count}/${state.maxTeamCapacity} members)`;
+                    opt.className = "text-rose-400 font-bold bg-slate-900";
+                } else {
+                    opt.textContent = `Team ${i} (${count}/${state.maxTeamCapacity} spots filled)`;
+                    opt.className = "text-white font-medium";
+                }
+
+                if (i == currentSelected && !isFull) opt.selected = true;
+                teamSelect.appendChild(opt);
+            }
+        }
+
+        function assignStudentFromChoice() {
+            if (!state.selectedStudentId) {
+                showToast("Please search and select a student first.", "warning");
+                return;
+            }
+
+            const teamId = parseInt(document.getElementById('teamChoiceSelect').value);
+            if (!teamId) {
+                showToast("Please select an available open team number.", "warning");
+                return;
+            }
+
+            // Verify team capacity limit
+            const currentMembers = state.students.filter(s => s.teamId === teamId);
+            const student = state.students.find(s => s.id === state.selectedStudentId);
+
+            // If assigning a new member to this team, check capacity limit
+            if (student.teamId !== teamId && currentMembers.length >= state.maxTeamCapacity) {
+                showToast(`Team ${teamId} is already full (${state.maxTeamCapacity}/${state.maxTeamCapacity})!`, "error");
+                return;
+            }
+
+            const setLeader = document.getElementById('markLeaderCheckbox').checked;
+
+            // If marking as leader, demote previous leader in this team
+            if (setLeader) {
+                state.students.forEach(s => {
+                    if (s.teamId === teamId) s.isLeader = false;
+                });
+            }
+
+            student.teamId = teamId;
+            student.isLeader = setLeader;
+
+            saveState();
+            renderApp();
+            showToast(`Assigned ${student.name} to Team ${teamId}${setLeader ? ' as Team Leader 👑' : ''}!`, "success");
+
+            clearSelectedStudentSearch();
+
+            if (state.students.every(s => s.teamId !== null)) {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            }
+        }
+
+        function unassignSelectedStudent() {
+            if (!state.selectedStudentId) {
+                showToast("Select a student to unassign.", "warning");
+                return;
+            }
+            const student = state.students.find(s => s.id === state.selectedStudentId);
+            if (student) {
+                student.teamId = null;
+                student.isLeader = false;
+                saveState();
+                renderApp();
+                clearSelectedStudentSearch();
+                showToast(`Unassigned ${student.name}.`, "info");
+            }
+        }
+
+        function renderTeamsGrid() {
+            const grid = document.getElementById('teamsDisplayGrid');
+            grid.innerHTML = '';
+
+            const searchKey = document.getElementById('gridSearchInput')?.value.toLowerCase().trim() || '';
+
+            if (state.numTeams === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center bg-white rounded-2xl border border-slate-200">
+                        <i data-lucide="users-minus" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i>
+                        <h3 class="text-base font-bold text-slate-700">No Teams Configured</h3>
+                        <p class="text-xs text-slate-400 mt-1">Increase the Number of Teams above to display team cards.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            for (let t = 1; t <= state.numTeams; t++) {
+                const members = state.students.filter(s => s.teamId === t);
+                const isFull = members.length >= state.maxTeamCapacity;
+
+                // Apply View Filters
+                if (state.currentFilter === 'open' && isFull) continue;
+                if (state.currentFilter === 'full' && !isFull) continue;
+
+                if (searchKey) {
+                    const matchesTeamNum = `team ${t}`.includes(searchKey) || `team0${t}`.includes(searchKey);
+                    const matchesMember = members.some(m => m.name.toLowerCase().includes(searchKey));
+                    if (!matchesTeamNum && !matchesMember) continue;
+                }
+
+                const percent = Math.min(100, Math.round((members.length / state.maxTeamCapacity) * 100));
+
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-2xl border ${isFull ? 'border-emerald-300 ring-1 ring-emerald-500/20' : 'border-slate-200'} shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md`;
+
+                card.innerHTML = `
+                    <!-- Team Header -->
+                    <div class="p-4 border-b border-slate-100 ${isFull ? 'bg-gradient-to-r from-emerald-50 to-teal-50' : 'bg-slate-50/70'} flex items-center justify-between">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="w-8 h-8 rounded-lg ${isFull ? 'bg-emerald-600' : 'bg-brand-600'} text-white font-extrabold text-sm flex items-center justify-center shadow-sm">
+                                ${t}
+                            </span>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-base leading-tight">Team ${t}</h4>
+                                <p class="text-[11px] text-slate-500 font-medium">${members.length} of ${state.maxTeamCapacity} members</p>
+                            </div>
+                        </div>
+
+                        ${isFull ? 
+                            `<span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center">
+                                <i data-lucide="check" class="w-3 h-3 mr-1"></i> FULL
+                            </span>` : 
+                            `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
+                                ${state.maxTeamCapacity - members.length} spots left
+                            </span>`
+                        }
+                    </div>
+
+                    <!-- Progress Capacity Bar -->
+                    <div class="w-full bg-slate-100 h-1.5">
+                        <div class="h-1.5 ${isFull ? 'bg-emerald-500' : 'bg-brand-500'} transition-all duration-300" style="width: ${percent}%"></div>
+                    </div>
+
+                    <!-- Member List -->
+                    <div class="p-4 flex-1 space-y-2">
+                        ${members.length === 0 ? 
+                            `<p class="text-xs text-slate-400 italic py-6 text-center">No students assigned yet</p>` :
+                            `<ul class="divide-y divide-slate-100">
+                                ${members.map((m, index) => `
+                                    <li class="py-2 flex items-center justify-between group ${m.isLeader ? 'bg-amber-50/60 -mx-2 px-2 rounded-lg border border-amber-200/50' : ''}">
+                                        <div class="flex items-center space-x-2 overflow-hidden">
+                                            <span class="text-[11px] font-semibold text-slate-400 w-4">${index + 1}.</span>
+                                            <span class="text-xs font-bold text-slate-800 truncate" title="${m.name}">
+                                                ${m.name}
+                                            </span>
+                                            ${m.isLeader ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 flex items-center shrink-0">👑 Leader</span>` : ''}
+                                        </div>
+                                        
+                                        <div class="flex items-center space-x-1 no-print">
+                                            <!-- Toggle Leader Crown Button -->
+                                            <button onclick="toggleTeamLeader(${m.id})" class="p-1 rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition-colors" title="${m.isLeader ? 'Demote Leader' : 'Promote to Team Leader'}">
+                                                <i data-lucide="crown" class="w-3.5 h-3.5 ${m.isLeader ? 'text-amber-500 fill-amber-400' : ''}"></i>
+                                            </button>
+                                            <!-- Remove Member Button -->
+                                            <button onclick="removeStudentFromTeam(${m.id})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition-all" title="Remove member">
+                                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                        </div>
+                                    </li>
+                                `).join('')}
+                            </ul>`
+                        }
+                    </div>
+
+                    <!-- Quick Add Button if not full -->
+                    ${!isFull ? `
+                        <div class="p-3 bg-slate-50 border-t border-slate-100 no-print">
+                            <button onclick="quickAssignNextAvailable(${t})" class="w-full py-1.5 px-3 bg-white hover:bg-brand-50 border border-slate-200 hover:border-brand-300 text-brand-600 text-xs font-bold rounded-lg transition-colors flex items-center justify-center">
+                                <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i> Add Next Unassigned
+                            </button>
+                        </div>
+                    ` : ''}
+                `;
+
+                grid.appendChild(card);
+            }
+        }
+
+        function toggleTeamLeader(studentId) {
+            const student = state.students.find(s => s.id === studentId);
+            if (!student || !student.teamId) return;
+
+            const targetTeamId = student.teamId;
+            const willBeLeader = !student.isLeader;
+
+            // Clear existing leader in this team if promoting a new leader
+            if (willBeLeader) {
+                state.students.forEach(s => {
+                    if (s.teamId === targetTeamId) s.isLeader = false;
+                });
+            }
+
+            student.isLeader = willBeLeader;
+            saveState();
+            renderApp();
+            showToast(`${student.name} is ${willBeLeader ? 'now Team Leader 👑' : 'no longer Team Leader'}.`, "info");
+        }
+
+        function quickAssignNextAvailable(teamId) {
+            const nextStudent = state.students.find(s => s.teamId === null);
+            if (!nextStudent) {
+                showToast("All students are already assigned to teams!", "info");
+                return;
+            }
+            nextStudent.teamId = teamId;
+            saveState();
+            renderApp();
+            showToast(`Assigned ${nextStudent.name} to Team ${teamId}`, "success");
+        }
+
+        function removeStudentFromTeam(studentId) {
+            const student = state.students.find(s => s.id === studentId);
+            if (student) {
+                student.teamId = null;
+                student.isLeader = false;
+                saveState();
+                renderApp();
+                showToast(`Removed ${student.name} from team.`, "info");
+            }
+        }
+
+        function executeAutoSplit() {
+            if (state.students.length === 0) {
+                showToast("No students in roster.", "error");
+                return;
+            }
+
+            const strategy = document.getElementById('splitStrategySelect').value;
+            const autoAssignLeader = document.getElementById('autoAssignLeaderToggle').checked;
+
+            let listToAssign = [...state.students];
+
+            if (strategy === 'random') {
+                for (let i = listToAssign.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [listToAssign[i], listToAssign[j]] = [listToAssign[j], listToAssign[i]];
+                }
+            } else if (strategy === 'sequential') {
+                listToAssign.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            // Reset all previous assignments and leaders
+            state.students.forEach(s => {
+                s.teamId = null;
+                s.isLeader = false;
+            });
+
+            // Assign up to numTeams * maxTeamCapacity
+            const maxTotalAllowed = state.numTeams * state.maxTeamCapacity;
+
+            listToAssign.forEach((student, index) => {
+                if (index < maxTotalAllowed) {
+                    const targetTeam = Math.floor(index / state.maxTeamCapacity) + 1;
+                    const isFirstInTeam = (index % state.maxTeamCapacity) === 0;
+
+                    const realStudent = state.students.find(s => s.id === student.id);
+                    if (realStudent) {
+                        realStudent.teamId = targetTeam;
+                        if (autoAssignLeader && isFirstInTeam) {
+                            realStudent.isLeader = true;
+                        }
+                    }
+                }
+            });
+
+            saveState();
+            renderApp();
+            showToast(`Auto-split complete! Distributed across ${state.numTeams} teams.`, "success");
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.5 } });
+        }
+
+        function unassignAllStudents() {
+            state.students.forEach(s => {
+                s.teamId = null;
+                s.isLeader = false;
+            });
+            saveState();
+            renderApp();
+            showToast("Cleared all team assignments.", "info");
+        }
+
+        function handleExcelFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    const namesExtracted = [];
+                    json.forEach(row => {
+                        row.forEach(cell => {
+                            if (cell && typeof cell === 'string') {
+                                const clean = cell.trim();
+                                if (clean && !['student', 'name', 'sl.no', 's.no', 'roll no', 'students'].includes(clean.toLowerCase())) {
+                                    if (!/^\d+$/.test(clean) && clean.length > 2) {
+                                        namesExtracted.push(clean);
+                                    }
+                                }
+                            }
+                        });
+                    });
+
+                    const uniqueNames = [...new Set(namesExtracted)];
+
+                    if (uniqueNames.length === 0) {
+                        showToast("Could not find student names in file.", "error");
+                        return;
+                    }
+
+                    state.students = uniqueNames.map((name, idx) => ({
+                        id: idx + 1,
+                        name: name,
+                        teamId: null,
+                        isLeader: false
+                    }));
+
+                    saveState();
+                    renderApp();
+                    showToast(`Loaded ${uniqueNames.length} students from Excel!`, "success");
+
+                } catch (err) {
+                    console.error(err);
+                    showToast("Error processing Excel file.", "error");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        function resetToDefaultData() {
+            initDefaultState();
+            renderApp();
+            showToast("Reset roster back to default list of 63 students!", "success");
+        }
+
+        function promptClearAllStudents() {
+            openConfirmationModal(
+                "Clear All Student Names?",
+                "This will permanently delete all student names and team assignments from the roster.",
+                () => {
+                    state.students = [];
+                    saveState();
+                    renderApp();
+                    showToast("Cleared all student names.", "info");
+                }
+            );
+        }
+
+        function openConfirmationModal(title, message, confirmCallback) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            state.pendingAction = confirmCallback;
+            document.getElementById('confirmationModal').classList.remove('hidden');
+        }
+
+        function closeConfirmationModal() {
+            document.getElementById('confirmationModal').classList.add('hidden');
+            state.pendingAction = null;
+        }
+
+        function executeModalConfirmAction() {
+            if (typeof state.pendingAction === 'function') {
+                state.pendingAction();
+            }
+            closeConfirmationModal();
+        }
+
+        function addNewStudent() {
+            const input = document.getElementById('newStudentNameInput');
+            const name = input.value.trim();
+            if (!name) return;
+
+            const newId = state.students.length > 0 ? Math.max(...state.students.map(s => s.id)) + 1 : 1;
+            state.students.push({
+                id: newId,
+                name: name,
+                teamId: null,
+                isLeader: false
+            });
+
+            input.value = '';
+            saveState();
+            renderApp();
+            showToast(`Added ${name} to roster!`, "success");
+        }
+
+        function processBulkPaste() {
+            const textarea = document.getElementById('bulkPasteInput');
+            const lines = textarea.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            if (lines.length === 0) return;
+
+            let maxId = state.students.length > 0 ? Math.max(...state.students.map(s => s.id)) : 0;
+            lines.forEach(name => {
+                maxId++;
+                state.students.push({
+                    id: maxId,
+                    name: name,
+                    teamId: null,
+                    isLeader: false
+                });
+            });
+
+            textarea.value = '';
+            saveState();
+            renderApp();
+            showToast(`Added ${lines.length} students!`, "success");
+        }
+
+        function deleteStudent(studentId) {
+            state.students = state.students.filter(s => s.id !== studentId);
+            saveState();
+            renderApp();
+            showToast("Deleted student from roster.", "info");
+        }
+
+        function generatePDFReport() {
+            if (typeof html2pdf === 'undefined') {
+                showToast("PDF library loading. Please try again in a moment.", "error");
+                return;
+            }
+
+            const pdfContainer = document.getElementById('pdfTeamsContent');
+            pdfContainer.innerHTML = '';
+
+            document.getElementById('pdfReportDate').textContent = `Date: ${new Date().toLocaleDateString()}`;
+            document.getElementById('pdfTotalStudents').textContent = state.students.length;
+            document.getElementById('pdfTeamCapacity').textContent = state.maxTeamCapacity;
+
+            for (let t = 1; t <= state.numTeams; t++) {
+                const members = state.students.filter(s => s.teamId === t);
+                const leader = members.find(m => m.isLeader);
+
+                const teamBlock = document.createElement('div');
+                teamBlock.className = "border border-slate-300 rounded-lg overflow-hidden mb-4 page-break-inside-avoid";
+
+                teamBlock.innerHTML = `
+                    <div class="bg-slate-800 text-white p-3 flex justify-between items-center">
+                        <span class="font-extrabold text-sm">TEAM ${t} (${members.length}/${state.maxTeamCapacity} Members)</span>
+                        ${leader ? `<span class="text-xs text-amber-300 font-bold">Leader: 👑 ${leader.name}</span>` : '<span class="text-xs text-slate-400">No leader set</span>'}
+                    </div>
+                    <table class="w-full text-left text-xs divide-y divide-slate-200">
+                        <thead class="bg-slate-100 font-bold text-slate-700">
+                            <tr>
+                                <th class="p-2 w-12 text-center">#</th>
+                                <th class="p-2">Student Name</th>
+                                <th class="p-2 w-32">Role</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${members.length === 0 ? 
+                                `<tr><td colspan="3" class="p-2 text-center text-slate-400 italic">No assigned members</td></tr>` : 
+                                members.map((m, idx) => `
+                                    <tr class="${m.isLeader ? 'bg-amber-50 font-bold' : ''}">
+                                        <td class="p-2 text-center text-slate-400">${idx + 1}</td>
+                                        <td class="p-2 text-slate-800">${m.name}</td>
+                                        <td class="p-2">${m.isLeader ? '👑 Team Leader' : 'Member'}</td>
+                                    </tr>
+                                `).join('')
+                            }
+                        </tbody>
+                    </table>
+                `;
+
+                pdfContainer.appendChild(teamBlock);
+            }
+
+            const element = document.getElementById('pdfReportContainer');
+            element.parentElement.classList.remove('hidden');
+
+            const opt = {
+                margin:       10,
+                filename:     `Team_Roster_${new Date().toISOString().slice(0,10)}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.parentElement.classList.add('hidden');
+                showToast("PDF report generated successfully!", "success");
+            }).catch(err => {
+                console.error(err);
+                element.parentElement.classList.add('hidden');
+                showToast("Failed to generate PDF.", "error");
+            });
+        }
+
+        function exportToExcel() {
+            const data = state.students.map((s, idx) => ({
+                'S.No': idx + 1,
+                'Student Name': s.name,
+                'Assigned Team': s.teamId ? `Team ${s.teamId}` : 'Unassigned',
+                'Role': s.isLeader ? 'Team Leader 👑' : 'Member'
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Team Roster");
+
+            XLSX.writeFile(workbook, `Team_Roster_${new Date().toISOString().slice(0,10)}.xlsx`);
+            showToast("Excel roster file downloaded!", "success");
+        }
+
+        function renderMasterRosterList() {
+            const grid = document.getElementById('masterStudentListGrid');
+            grid.innerHTML = '';
+
+            state.students.forEach((student, idx) => {
+                const item = document.createElement('div');
+                item.className = "p-2 rounded-lg border border-slate-200 bg-white flex items-center justify-between text-xs";
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2 overflow-hidden">
+                        <span class="font-bold text-slate-400 w-5">${idx + 1}.</span>
+                        <span class="font-semibold text-slate-800 truncate" title="${student.name}">${student.name}</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5 shrink-0">
+                        ${student.teamId ? 
+                            `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand-50 text-brand-700 border border-brand-200">T${student.teamId} ${student.isLeader ? '👑' : ''}</span>` : 
+                            `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">Unassigned</span>`
+                        }
+                        <button onclick="deleteStudent(${student.id})" class="text-slate-300 hover:text-rose-600 p-0.5 rounded" title="Delete">
+                            <i data-lucide="trash" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        function switchTab(tabKey) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-brand-600', 'text-brand-600');
+                btn.classList.add('border-transparent', 'text-slate-500');
+            });
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+
+            document.getElementById(`tab-${tabKey}`).classList.add('border-brand-600', 'text-brand-600');
+            document.getElementById(`tab-${tabKey}`).classList.remove('border-transparent', 'text-slate-500');
+            document.getElementById(`content-${tabKey}`).classList.remove('hidden');
+        }
+
+        function setTeamFilter(filter) {
+            state.currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-600', 'text-white');
+                btn.classList.add('bg-white', 'text-slate-600');
+            });
+            document.getElementById(`filter-btn-${filter}`).classList.add('bg-brand-600', 'text-white');
+            document.getElementById(`filter-btn-${filter}`).classList.remove('bg-white', 'text-slate-600');
+            renderTeamsGrid();
+        }
+
+        function filterTeamDisplay() {
+            renderTeamsGrid();
+        }
+
+        function toggleMasterList() {
+            state.masterListOpen = !state.masterListOpen;
+            const container = document.getElementById('masterListContainer');
+            const icon = document.getElementById('masterListToggleIcon');
+            const text = document.getElementById('masterListToggleText');
+
+            if (state.masterListOpen) {
+                container.classList.remove('hidden');
+                text.textContent = 'Collapse View';
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                container.classList.add('hidden');
+                text.textContent = 'Expand View';
+                icon.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            const bgColors = {
+                success: "bg-emerald-800 text-white border-emerald-700",
+                error: "bg-rose-800 text-white border-rose-700",
+                warning: "bg-amber-800 text-white border-amber-700",
+                info: "bg-slate-900 text-white border-slate-800"
+            };
+
+            const icons = {
+                success: "check-circle",
+                error: "alert-circle",
+                warning: "alert-triangle",
+                info: "info"
+            };
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-xl text-xs font-semibold flex items-center space-x-2 transition-all transform translate-y-2 opacity-0 ${bgColors[type] || bgColors.info}`;
+            toast.innerHTML = `
+                <i data-lucide="${icons[type] || 'info'}" class="w-4 h-4 shrink-0"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
